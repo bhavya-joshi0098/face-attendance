@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1.0">
+
+<title>Face Attendance</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script defer src="js/attendance.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>FaceAttend AI</h1>
+
+<p>Automatic Attendance</p>
+
+<div class="camera-box">
+
+<video
+id="video"
+autoplay
+muted
+playsinline></video>
+
+<canvas id="overlay"></canvas>
+
+</div>
+
+<p id="status">Loading...</p>
+
+<div id="resultCard" class="result-card">
+
+<img id="employeePhoto">
+
+<h2 id="employeeName"></h2>
+
+<p id="employeeDepartment"></p>
+
+<p id="attendanceTime"></p>
+
+</div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Employee</title>
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script defer src="js/register.js"></script>
+</head>
+
+<body>
+
+  <!-- Registration Screen -->
+  <div class="container">
+
+    <h1>FaceAttend AI</h1>
+    <p>Employee Registration</p>
+
+    <input id="employeeId" placeholder="Employee ID">
+    <input id="fullName" placeholder="Full Name">
+    <input id="department" placeholder="Department">
+
+    <button id="startCamera">Open Camera</button>
+
+    <div class="camera-box">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="overlay"></canvas>
+    </div>
+
+    <!-- Hidden canvas used to capture the best frame -->
+    <canvas id="captureCanvas" style="display:none;"></canvas>
+
+    <button id="registerBtn" disabled>Register Employee</button>
+
+    <p id="status">Waiting...</p>
+
+    <div class="progress-box">
+      <div id="progressFill"></div>
+    </div>
+
+    <p id="progressText">0/10 Samples</p>
+
+  </div>
+
+  <!-- Success Screen (MOVED OUTSIDE .container) -->
+  <div id="successCard">
+
+    <div class="success-icon">✓</div>
+
+    <img id="successPhoto" alt="Employee Photo">
+
+    <h2>Employee Registered Successfully</h2>
+
+    <p id="successName"></p>
+    <p id="successId"></p>
+    <p id="successDepartment"></p>
+    <p id="successTime"></p>
+
+    <button id="nextEmployee">Register Next Employee</button>
+
+  </div>
+
+</body>
+</html>
