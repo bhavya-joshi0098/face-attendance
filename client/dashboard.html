@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>Attendance Dashboard</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<script defer src="js/dashboard.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>FaceAttend AI</h1>
+
+<p>HR Dashboard</p>
+
+<div class="stats">
+
+<div class="stat-card">
+
+<h2 id="presentCount">0</h2>
+
+<p>Present Today</p>
+
+</div>
+
+<div class="stat-card">
+
+<h2 id="employeeCount">0</h2>
+
+<p>Total Employees</p>
+
+</div>
+
+</div>
+
+<input
+id="search"
+placeholder="Search Employee">
+
+<table class="attendance-table">
+
+<thead>
+
+<tr>
+
+<th>Photo</th>
+<th>Name</th>
+<th>Department</th>
+<th>Time</th>
+
+</tr>
+
+</thead>
+
+<tbody id="attendanceBody"></tbody>
+
+</table>
+
+</div>
+
+</body>
+
+</html>

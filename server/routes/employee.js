@@ -171,4 +171,44 @@ router.post("/attendance", async (req, res) => {
     });
   }
 });
+
+// Dashboard - Today's attendance
+router.get("/attendance/today", async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .select(`
+        id,
+        check_in,
+        confidence,
+        device_name,
+        employees (
+          employee_id,
+          full_name,
+          department,
+          photo_url
+        )
+      `)
+      .eq("attendance_date", today)
+      .order("check_in", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      attendance: data
+    });
+
+  } catch (err) {
+
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+
+  }
+});
+
 module.exports = router;

@@ -1,3 +1,8 @@
+// =========================================
+// FaceAttend AI - Attendance Kiosk
+// =========================================
+
+// ---------- DOM ----------
 const video = document.getElementById("video");
 const status = document.getElementById("status");
 
@@ -7,68 +12,128 @@ const employeeName = document.getElementById("employeeName");
 const employeeDepartment = document.getElementById("employeeDepartment");
 const attendanceTime = document.getElementById("attendanceTime");
 
+// ---------- Audio ----------
+window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+async function playBeep(type = "success") {
+  try {
+    if (window.audioCtx.state === "suspended") {
+      await window.audioCtx.resume();
+    }
+
+    const oscillator = window.audioCtx.createOscillator();
+    const gain = window.audioCtx.createGain();
+
+    oscillator.connect(gain);
+    gain.connect(window.audioCtx.destination);
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = type === "success" ? 900 : 300;
+
+    gain.gain.setValueAtTime(0.2, window.audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      window.audioCtx.currentTime + 0.18
+    );
+
+    oscillator.start();
+    oscillator.stop(window.audioCtx.currentTime + 0.18);
+
+  } catch (err) {
+    console.error("Beep Error:", err);
+  }
+}
+
+// Make available from browser console
+window.playBeep = playBeep;
+
+// ---------- Recognition ----------
 let employees = [];
 let matcher = null;
+
 let lastRecognized = "";
-let lastTime = 0;
+let lastRecognizedTime = 0;
+
+let detectionInterval = null;
+
+// =========================================
+// Load AI Models
+// =========================================
 
 async function loadModels() {
 
-  status.innerText = "Loading Models...";
+  status.innerText = "Loading AI Models...";
 
   await faceapi.nets.ssdMobilenetv1.loadFromUri("./models");
   await faceapi.nets.faceLandmark68Net.loadFromUri("./models");
   await faceapi.nets.faceRecognitionNet.loadFromUri("./models");
 
-  status.innerText = "Loading Employees...";
-
 }
 
+// =========================================
+// Load Employees
+// =========================================
+
 async function loadEmployees() {
+
+  status.innerText = "Loading Employees...";
 
   const response = await fetch("http://localhost:5000/api/employees");
   const result = await response.json();
 
-  employees = result.employees.map(emp => {
+  employees = result.employees;
 
-    return new faceapi.LabeledFaceDescriptors(
+  const labeledDescriptors = employees.map(emp =>
+
+    new faceapi.LabeledFaceDescriptors(
       emp.full_name,
       [new Float32Array(emp.face_descriptor)]
-    );
+    )
 
-  });
+  );
 
-  matcher = new faceapi.FaceMatcher(employees, 0.45);
+  matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
 
   status.innerText = "Models Ready";
 
 }
 
+// =========================================
+// Start Camera
+// =========================================
+
 async function startCamera() {
 
   const stream = await navigator.mediaDevices.getUserMedia({
 
-    video:{
-      facingMode:"user",
-      width:{ideal:720},
-      height:{ideal:1280}
-    }
+    video: {
+      facingMode: "user",
+      width: { ideal: 720 },
+      height: { ideal: 1280 }
+    },
+
+    audio: false
 
   });
 
   video.srcObject = stream;
 
+  // Unlock audio after camera permission
+  await window.audioCtx.resume();
+
 }
+
+// =========================================
+// Face Recognition Loop
+// =========================================
 
 video.addEventListener("play", () => {
 
   const canvas = document.getElementById("overlay");
 
   const displaySize = {
-
     width: video.clientWidth,
     height: video.clientHeight
-
   };
 
   canvas.width = displaySize.width;
@@ -76,7 +141,9 @@ video.addEventListener("play", () => {
 
   faceapi.matchDimensions(canvas, displaySize);
 
-  setInterval(async () => {
+  if (detectionInterval) clearInterval(detectionInterval);
+
+  detectionInterval = setInterval(async () => {
 
     const detection = await faceapi
       .detectSingleFace(video)
@@ -84,7 +151,7 @@ video.addEventListener("play", () => {
       .withFaceDescriptor();
 
     const ctx = canvas.getContext("2d");
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (!detection) {
 
@@ -93,81 +160,149 @@ video.addEventListener("play", () => {
       resultCard.style.display = "none";
 
       return;
-
     }
 
-    const resized = faceapi.resizeResults(detection,displaySize);
+    const resized = faceapi.resizeResults(detection, displaySize);
 
-    faceapi.draw.drawDetections(canvas,[resized]);
-    faceapi.draw.drawFaceLandmarks(canvas,[resized]);
+    faceapi.draw.drawDetections(canvas, [resized]);
+    faceapi.draw.drawFaceLandmarks(canvas, [resized]);
 
     const best = matcher.findBestMatch(detection.descriptor);
 
-    if(best.label==="unknown"){
+    // ---------- Unknown ----------
+    if (best.label === "unknown") {
 
-      status.innerText="Unknown Person";
+      status.innerText = "Unknown Person";
 
-      resultCard.style.display="none";
+      resultCard.style.display = "none";
 
-      return;
-
-    }
-
-    const now=Date.now();
-
-    if(best.label===lastRecognized && now-lastTime<5000){
+      playBeep("error");
 
       return;
-
     }
 
-    lastRecognized=best.label;
-    lastTime=now;
+    // Prevent repeated recognition every 5 seconds
+    const now = Date.now();
 
-    const employee=employees.find(e=>e.label===best.label);
+    if (
+      best.label === lastRecognized &&
+      now - lastRecognizedTime < 5000
+    ) {
+      return;
+    }
 
-    const response=await fetch("http://localhost:5000/api/employees");
+    lastRecognized = best.label;
+    lastRecognizedTime = now;
 
-    const data=await response.json();
+    // Employee already exists in memory
+    const info = employees.find(emp => emp.full_name === best.label);
 
-    const info=data.employees.find(e=>e.full_name===best.label);
+    if (!info) return;
 
+    // ---------- Show Success ----------
     resultCard.style.display = "block";
-resultCard.className = "result-card success-card";
+    resultCard.className = "result-card success-card";
 
-employeePhoto.src = info.photo_url;
-employeeName.innerText = `Welcome ${info.full_name}`;
-employeeDepartment.innerText = info.department;
-attendanceTime.innerText = new Date().toLocaleTimeString();
+    employeePhoto.src = info.photo_url;
+    employeeName.innerText = `Welcome ${info.full_name}`;
+    employeeDepartment.innerText = info.department || "Not Assigned";
 
-// Save attendance in Supabase
-const save = await fetch("http://localhost:5000/api/employees/attendance", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-body: JSON.stringify({
-  employee_id: info.id,
-  confidence: Number((1 - best.distance).toFixed(3))
-})
+    attendanceTime.innerText = new Date().toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      dateStyle: "medium",
+      timeStyle: "short"
+    });
+
+    // ---------- Save Attendance ----------
+    try {
+
+      const saveResponse = await fetch(
+        "http://localhost:5000/api/employees/attendance",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            employee_id: info.id,
+            confidence: Number((1 - best.distance).toFixed(3))
+          })
+        }
+      );
+
+      const saveResult = await saveResponse.json();
+
+      if (saveResult.duplicate) {
+        status.innerText = "Already Marked";
+      } else {
+        status.innerText = "Attendance Marked";
+      }
+
+    } catch (err) {
+
+      console.error("Attendance Save Error:", err);
+
+      status.innerText = "Attendance Save Failed";
+
+    }
+
+    playBeep("success");
+
+    // Hide welcome card after 3 seconds
+    setTimeout(() => {
+
+      resultCard.style.display = "none";
+
+      status.innerText = "Ready";
+
+    }, 3000);
+
+  }, 250);
+
 });
 
-const saveResult = await save.json();
+// =========================================
+// Initialize
+// =========================================
 
-if (saveResult.duplicate) {
-  status.innerText = "Already Marked";
-} else {
-  status.innerText = "Attendance Marked";
-}
+(async () => {
 
-  },250);
+  try {
 
-});
+    await loadModels();
+    await loadEmployees();
+    await startCamera();
 
-(async()=>{
+  } catch (err) {
 
-  await loadModels();
-  await loadEmployees();
-  await startCamera();
+    console.error(err);
+
+    status.innerText = "Initialization Failed";
+
+  }
 
 })();
+
+// =========================================
+// Unlock Audio (First Touch)
+// =========================================
+
+document.addEventListener("pointerdown", async () => {
+
+  if (window.audioCtx.state === "suspended") {
+    await window.audioCtx.resume();
+    console.log("Audio Unlocked");
+  }
+
+}, { once: true });
+
+// =========================================
+// Service Worker
+// =========================================
+
+if ("serviceWorker" in navigator) {
+
+  navigator.serviceWorker.register("./service-worker.js")
+    .catch(console.error);
+
+}

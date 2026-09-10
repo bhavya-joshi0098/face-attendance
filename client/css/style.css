@@ -148,3 +148,37 @@ border:3px solid #22C55E;
 .error-card{
 border:3px solid #EF4444;
 }
+
+.stats{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:15px;
+margin:20px 0;
+}
+
+.stat-card{
+background:#1E293B;
+padding:20px;
+border-radius:18px;
+text-align:center;
+}
+
+.attendance-table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+}
+
+.attendance-table th,
+.attendance-table td{
+padding:12px;
+text-align:left;
+border-bottom:1px solid #334155;
+}
+
+.attendance-table img{
+width:45px;
+height:45px;
+border-radius:50%;
+object-fit:cover;
+}
